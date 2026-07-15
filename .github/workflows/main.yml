@@ -1,5 +1,7 @@
 name: Build Salman Downloader APK
 
+# Yeh workflow har baar chalega jab aap "main" branch par code push karein,
+# ya phir aap ise Actions tab se manually bhi chala sakte hain.
 on:
   push:
     branches: [ "main" ]
@@ -8,73 +10,65 @@ on:
 jobs:
   build-apk:
     runs-on: ubuntu-22.04
-
     steps:
       - name: Repo checkout karein
         uses: actions/checkout@v4
 
+      - name: Java 17 setup karein
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Python setup karein
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
       - name: System dependencies install karein
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            build-essential \
-            git \
-            ffmpeg \
-            libsdl2-dev \
-            libsdl2-image-dev \
-            libsdl2-mixer-dev \
-            libsdl2-ttf-dev \
-            libportmidi-dev \
-            libswscale-dev \
-            libavformat-dev \
-            libavcodec-dev \
-            zlib1g-dev \
-            libgstreamer1.0-dev \
-            gstreamer1.0-plugins-base \
-            gstreamer1.0-plugins-good \
-            gstreamer1.0-plugins-bad \
-            gstreamer1.0-plugins-ugly \
-            gstreamer1.0-libav \
-            libsqlite3-dev \
-            sqlite3 \
-            bzip2 \
-            libbz2-dev \
-            libssl-dev \
-            openssl \
-            libgdbm-dev \
-            libgdbm-compat-dev \
-            liblzma-dev \
-            libreadline-gplv2-dev \
-            libncursesw5-dev \
-            libffi-dev \
-            uuid-dev \
-            tar \
-            unzip \
-            zip \
-            openjdk-17-jdk
+          sudo apt-get install -y git zip unzip autoconf libtool \
+            pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev \
+            libtinfo6 cmake libffi-dev libssl-dev build-essential
 
-      - name: Python set up karein
-        uses: actions/setup-python@v5
-        with:
-          python-python-version: '3.10'
-
-      - name: Buildozer install karein
+      - name: Buildozer aur Cython install karein
         run: |
           pip install --upgrade pip
-          pip install Cython==0.29.36 buildozer virtualenv
+          pip install buildozer==1.5.0 cython==0.29.33 virtualenv
 
       - name: Buildozer cache set karein (agli builds tez ho jayengi)
         uses: actions/cache@v4
         with:
-          path: .buildozer
-          key: buildozer-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}
-          restore-keys: |
-            buildozer-${{ runner.os }}-
+          path: |
+            .buildozer
+            ~/.buildozer
+          key: buildozer-${{ hashFiles('buildozer.spec') }}
+
+      - name: Android SDK download aur license accept karein (agar pehle se nahi hai)
+        run: |
+          SDK_DIR="$HOME/.buildozer/android/platform/android-sdk"
+          if [ ! -f "$SDK_DIR/cmdline-tools/latest/bin/sdkmanager" ]; then
+            mkdir -p "$SDK_DIR/cmdline-tools"
+            cd "$SDK_DIR/cmdline-tools"
+            curl -o cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+            unzip -q cmdline-tools.zip
+            mv cmdline-tools latest
+            rm cmdline-tools.zip
+          fi
+          # Buildozer's older versions only look for the legacy "tools/bin/sdkmanager"
+          # path, so we duplicate the install there as a real copy (not a symlink,
+          # so the script's relative-path lookups keep working correctly).
+          if [ ! -f "$SDK_DIR/tools/bin/sdkmanager" ]; then
+            cp -r "$SDK_DIR/cmdline-tools/latest" "$SDK_DIR/tools"
+          fi
+          yes | "$SDK_DIR/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$SDK_DIR" --licenses
+          "$SDK_DIR/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$SDK_DIR" "platform-tools" "platforms;android-33" "build-tools;33.0.2"
+          yes | "$SDK_DIR/tools/bin/sdkmanager" --sdk_root="$SDK_DIR" --licenses || true
 
       - name: APK build karein
         run: |
-          # Android SDK license accept karne ke liye
-          yes | buildozer android debug
+          yes | buildozer -v android debug
 
       - name: APK ko artifact ke tor par upload karein
         uses: actions/upload-artifact@v4
