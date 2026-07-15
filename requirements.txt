@@ -1,0 +1,14 @@
+# Python libraries required to run/test main.py on your PC
+kivy>=2.2.1
+yt-dlp>=2024.1.1
+certifi
+
+# ---------------------------------------------------------------
+# For Buildozer (Android build), set this line in buildozer.spec:
+#
+# requirements = python3,kivy,yt-dlp,certifi,pyjnius,openssl
+#
+# And these permissions in buildozer.spec:
+#
+# android.permissions = INTERNET,WRITE_EXTERNAL_STORAGE,READ_EXTERNAL_STORAGE,MANAGE_EXTERNAL_STORAGE
+# ---------------------------------------------------------------
